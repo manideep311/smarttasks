@@ -2,7 +2,7 @@ from django.db import transaction
 from django.http import Http404
 from django.utils import timezone
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 
 from .ai import break_down_task, parse_task_text
@@ -21,6 +21,16 @@ def subtask_not_allowed(task):
         'A subtask cannot have its own subtasks',
         [{'field': 'id', 'issue': f'task {task.pk} is already a subtask of task {task.parent_id}'}],
         status.HTTP_400_BAD_REQUEST,
+    )
+
+
+@api_view(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
+def api_not_found(request):
+    return error_response(
+        'NOT_FOUND',
+        'Endpoint not found',
+        [{'field': 'path', 'issue': f'no endpoint at {request.path}'}],
+        status.HTTP_404_NOT_FOUND,
     )
 
 

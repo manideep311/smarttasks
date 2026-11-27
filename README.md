@@ -18,7 +18,7 @@ You need Python 3.12 or newer and Docker Desktop.
 1. Clone the repo and open the folder:
 
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/manideep311/smarttasks.git
    cd smarttasks
    ```
 
@@ -89,7 +89,7 @@ Every error response has the same shape. `code` and `message` are always strings
 | 400 | `VALIDATION_ERROR` | A field breaks a rule, or a filter value is invalid |
 | 400 | `PARSE_ERROR` | The request body is not valid JSON |
 | 400 | `SUBTASK_NOT_ALLOWED` | Adding subtasks to, or breaking down, a task that is already a subtask |
-| 404 | `NOT_FOUND` | No task with that id, or a page number past the end |
+| 404 | `NOT_FOUND` | No task with that id, an unknown URL under `/api/`, or a page number past the end |
 | 405 | `METHOD_NOT_ALLOWED` | The URL exists but not for that method |
 | 422 | `IDEMPOTENCY_KEY_REUSED` | An `Idempotency-Key` was reused with a different body |
 | 502 | `PARSER_ERROR`, `INVALID_PARSER_OUTPUT` | The text parser crashed or returned data that failed validation |
@@ -215,9 +215,25 @@ Response `200 OK`:
 }
 ```
 
-### Retrieve, update, delete
+### Retrieve a task
 
-`GET /api/tasks/1/` returns the task. `PATCH /api/tasks/1/` with `{"completed": true}` changes only that field. `PUT` needs all required fields. `DELETE /api/tasks/1/` returns `204 No Content` and deletes the task's subtasks too.
+`GET /api/tasks/1/`
+
+Response `200 OK`:
+
+```json
+{
+  "id": 1,
+  "title": "Pay rent",
+  "description": "Transfer rent to the landlord",
+  "completed": false,
+  "due_date": "2026-12-01",
+  "priority": "high",
+  "parent": null,
+  "created_at": "2026-11-27T05:41:52.348695Z",
+  "updated_at": "2026-11-27T05:41:52.348706Z"
+}
+```
 
 An unknown id returns `404 Not Found`:
 
@@ -227,6 +243,82 @@ An unknown id returns `404 Not Found`:
     "code": "NOT_FOUND",
     "message": "Task not found",
     "details": [{ "field": "id", "issue": "no task with id 99" }]
+  }
+}
+```
+
+### Replace a task
+
+`PUT /api/tasks/1/` needs every required field.
+
+```json
+{
+  "title": "Pay rent",
+  "description": "Rent for December",
+  "completed": false,
+  "due_date": "2026-12-01",
+  "priority": "high"
+}
+```
+
+Response `200 OK`:
+
+```json
+{
+  "id": 1,
+  "title": "Pay rent",
+  "description": "Rent for December",
+  "completed": false,
+  "due_date": "2026-12-01",
+  "priority": "high",
+  "parent": null,
+  "created_at": "2026-11-27T05:41:52.348695Z",
+  "updated_at": "2026-11-27T05:41:52.398877Z"
+}
+```
+
+### Update some fields
+
+`PATCH /api/tasks/1/` changes only the fields you send.
+
+```json
+{ "completed": true }
+```
+
+Response `200 OK`:
+
+```json
+{
+  "id": 1,
+  "title": "Pay rent",
+  "description": "Rent for December",
+  "completed": true,
+  "due_date": "2026-12-01",
+  "priority": "high",
+  "parent": null,
+  "created_at": "2026-11-27T05:41:52.348695Z",
+  "updated_at": "2026-11-27T05:41:52.420161Z"
+}
+```
+
+### Delete a task
+
+`DELETE /api/tasks/1/` (no body)
+
+Response `204 No Content`, with an empty body. The task's subtasks are deleted with it.
+
+### Unknown URL
+
+`GET /api/nothing/`
+
+Response `404 Not Found`:
+
+```json
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Endpoint not found",
+    "details": [{ "field": "path", "issue": "no endpoint at /api/nothing/" }]
   }
 }
 ```
@@ -282,7 +374,25 @@ Response `201 Created`:
 }
 ```
 
-`GET /api/tasks/1/subtasks/` returns the subtasks as a list, oldest first.
+`GET /api/tasks/1/subtasks/` lists the subtasks, oldest first.
+
+Response `200 OK`:
+
+```json
+[
+  {
+    "id": 3,
+    "title": "Check bank balance",
+    "description": "Make sure there is enough money",
+    "completed": false,
+    "due_date": null,
+    "priority": "medium",
+    "parent": 1,
+    "created_at": "2026-11-25T04:49:46.618172Z",
+    "updated_at": "2026-11-25T04:49:46.618182Z"
+  }
+]
+```
 
 A subtask can't have its own subtasks. `POST /api/tasks/3/subtasks/` returns `400 Bad Request`:
 
@@ -314,7 +424,32 @@ Every item is validated before any is saved. If one is invalid, none are saved a
 
 ### Tasks by priority
 
-`GET /api/tasks/priority/high/` returns a page of high-priority tasks, in the same format as the list endpoint. `GET /api/tasks/priority/urgent/` returns `400`:
+`GET /api/tasks/priority/high/` returns a page of high-priority tasks. Search, filters, ordering and `page` work here too.
+
+Response `200 OK`:
+
+```json
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 1,
+      "title": "Pay rent",
+      "description": "Transfer rent to the landlord",
+      "completed": true,
+      "due_date": "2026-12-01",
+      "priority": "high",
+      "parent": null,
+      "created_at": "2026-11-25T04:49:46.505300Z",
+      "updated_at": "2026-11-25T04:49:46.567910Z"
+    }
+  ]
+}
+```
+
+`GET /api/tasks/priority/urgent/` returns `400 Bad Request`:
 
 ```json
 {
